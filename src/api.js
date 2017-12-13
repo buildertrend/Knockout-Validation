@@ -173,6 +173,31 @@
 					}
 				});
 			};
+			
+			//Added from ko-validation pull request: https://github.com/Knockout-Contrib/Knockout-Validation/pull/298/files#diff-99d703e6703fd65cd358942f3b2b2525
+            result.getDetails = function () {
+                var details = [];
+
+                // ensure we have latest changes
+                var latest = result();
+
+                if (!latest.length) {
+                    // don't do anything if no errors occured
+                    return [];
+                }
+
+                ko.utils.arrayForEach(context.validatables, function (observable) {
+                    if (!observable.isValid()) {
+                        details.push({
+                            observable: observable,
+                            error: observable.error(),
+                            rule: observable.failedRule()
+                        });
+                    }
+                });
+
+                return details;
+            };
 
 			result.isAnyMessageShown = function () {
 				var invalidAndModifiedPresent;
@@ -331,7 +356,8 @@
 						rule: ruleName,
 						message: params.message,
 						params: utils.isEmptyVal(params.params) ? true : params.params,
-						condition: params.onlyIf
+						condition: params.onlyIf,
+						summaryMessage: params.summaryMessage
 					});
 				} else {
 					return ko.validation.addRule(observable, {
