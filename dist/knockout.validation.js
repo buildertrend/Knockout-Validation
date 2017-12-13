@@ -371,6 +371,31 @@ kv.configuration = configuration;
 					}
 				});
 			};
+			
+			//Added from ko-validation pull request: https://github.com/Knockout-Contrib/Knockout-Validation/pull/298/files#diff-99d703e6703fd65cd358942f3b2b2525
+            result.getDetails = function () {
+                var details = [];
+
+                // ensure we have latest changes
+                var latest = result();
+
+                if (!latest.length) {
+                    // don't do anything if no errors occured
+                    return [];
+                }
+
+                forEach(context.validatables, function (observable) {
+                    if (!observable.isValid()) {
+                        details.push({
+                            observable: observable,
+                            error: observable.error(),
+                            rule: observable.failedRule()
+                        });
+                    }
+                });
+
+                return details;
+            };
 
 			result.isAnyMessageShown = function () {
 				var invalidAndModifiedPresent;
@@ -529,7 +554,8 @@ kv.configuration = configuration;
 						rule: ruleName,
 						message: params.message,
 						params: utils.isEmptyVal(params.params) ? true : params.params,
-						condition: params.onlyIf
+						condition: params.onlyIf,
+						summaryMessage: params.summaryMessage
 					});
 				} else {
 					return kv.addRule(observable, {
@@ -1217,6 +1243,16 @@ ko.extenders['validatable'] = function (observable, options) {
 
 		//the true holder of whether the observable is valid or not
 		observable.__valid__ = ko.observable(true);
+		
+		 // holds the name of the validation rule that has failed during the last validation procedure
+        observable.failedRule = ko.observable(null);
+
+        observable.error.subscribe(function (v) {
+            if (!v) {
+                // clearing the failed rule name when validation message is empty
+                observable.failedRule(null);
+            }
+        });
 
 		observable.isModified = ko.observable(false);
 
@@ -1297,6 +1333,7 @@ function validateSync(observable, rule, ctx) {
 					ctx.message || rule.message,
 					unwrap(ctx.params),
 					observable));
+		observable.failedRule(ctx);
 		return false;
 	} else {
 		return true;
@@ -1333,6 +1370,9 @@ function validateAsync(observable, rule, ctx) {
 				unwrap(ctx.params),
 				observable));
 			observable.__valid__(isValid);
+			
+            // remembering the name of the failed rule (passing it when "getDetails" is called)
+            observable.failedRule(ctx);
 		}
 
 		// tell it that we're done
